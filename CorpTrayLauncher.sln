@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.36105.23 d17.13
+VisualStudioVersion = 17.13.36105.23
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CorpTrayLauncher", "CorpTrayLauncher.csproj", "{771AD90F-B96E-4FAA-99D1-4EE124FB20CD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroupEditor", "GroupEditor\GroupEditor.csproj", "{F28AFA31-2C91-414F-856C-C0C0386A692E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{771AD90F-B96E-4FAA-99D1-4EE124FB20CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{771AD90F-B96E-4FAA-99D1-4EE124FB20CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{771AD90F-B96E-4FAA-99D1-4EE124FB20CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F28AFA31-2C91-414F-856C-C0C0386A692E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F28AFA31-2C91-414F-856C-C0C0386A692E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F28AFA31-2C91-414F-856C-C0C0386A692E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F28AFA31-2C91-414F-856C-C0C0386A692E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

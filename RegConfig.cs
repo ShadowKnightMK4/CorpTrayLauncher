@@ -12,281 +12,211 @@ using System.Drawing;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-namespace CorpTrayLauncher
+
+using CorpTrayLauncher.IconHandling;
+using CorpTrayLauncher.Shortcuts;
+namespace CorpTrayLauncher.RegistryHandling
 {
 
-    internal static class RegConfigLocations
-    {
-        /// <summary>
-        /// Open the registry hive that's the user group storage location
-        /// </summary>
-        /// <returns></returns>
-        public static  RegistryKey OpenUsersGroup()
-        {
-            return Registry.CurrentUser.OpenSubKey(UserGroupLocation, true) ?? Registry.CurrentUser.CreateSubKey(UserGroupLocation);
-        }
-
-        public static RegistryKey OpenPolicyGroup()
-        {
-            return Registry.LocalMachine.OpenSubKey(PolicySettingLocation, true) ?? Registry.LocalMachine.CreateSubKey(PolicySettingLocation);
-        }
-
-        /// <summary>
-        /// Grab the custom tray icon regkey
-        /// </summary>
-        /// <returns></returns>
-        public static RegistryKey OpenTrayIconSetting()
-        {
-            RegistryKey policy = Registry.CurrentUser.OpenSubKey(PolicyTrayIconLocation, true);
-            RegistryKey user = Registry.CurrentUser.OpenSubKey(UserTrayIconLocation, true);
-
-            if (policy != null && user != null)
-            {
-                user.Dispose();
-                return policy; // Policy overrides user settings
-            }
-            else if (user != null)
-            {
-                return user; // Only user settings available
-            }
-            else
-            {
-                return null; // No settings found
-            }
-        }
-        public const string PolicySettingLocation = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\CorpTrayLauncher";
-        public const string UserSettingLocation = "HKEY_CURRENT_USER\\Software\\CorpTrayLauncher\\";
-        
-        public const string UserTrayIconLocation = "\\Software\\CorpTrayLauncher\\TrayIcon";
-        public const string PolicyTrayIconLocation = "\\Software\\Policies\\CorpTrayLauncher\\TrayIcon";
-
-        public const string UserGroupLocation = "Software\\CorpTrayLauncher\\Groups";
-        /// <summary>
-        /// Name of registry key where the folder paths are stored.
-        /// </summary>
-        public const string FolderRegValueName = "FolderBuildingPath";
-        public const string DisabledRegValueName = "Disabled";
-        public const string IsTopLevelRegValueName = "IsTopLevel"; // This is used to determine if the group is a top-level group or a sub-group.
-        public const string TrayIcon = "TrayIcon"; // This is used to store the icon for the group.
-    }
-
-    static class LinkDispatch
-    {
-       public static void FollowLink(ShellLinkObject obj)
-        {
-            Process StartMe = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = obj.Path,
-                    Arguments = obj.Arguments,
-                    WorkingDirectory = obj.WorkingDirectory,
-                    UseShellExecute = true
-                }
-            };
-            try
-            {
-                StartMe?.Start();
-            }
-            catch (Exception ex)
-            {
-                DebugStuff.WriteLog("Error starting process: " + ex.Message);
-                MessageBox.Show($"Error launching shortcut: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return; // Exit if there's an error starting the process
-            }
-            finally
-            {
-                StartMe?.Dispose();
-            }
-                return;
-        }
-    }
-
-    static class ToolStripExt
-    {
-       static Shell Help = null;
-
-        /// <summary>
-        /// Assign a name to the item based on the target file name. This is used when the link does not have a description set.
-        /// </summary>
-        /// <param name="Target"></param>
-        /// <returns></returns>
-        static string AssignFromTarget(string Target)
-        {
-            string trim = Path.GetFileNameWithoutExtension(Target);
-            return trim;
-
-        }
-
-        static void HandleFolderShortcutToolMenu_branching(DirectoryInfo Source, ContextMenuStrip Target, ToolStripMenuItem OtherTarget)
-        {
-            if (Help == null)
-            {
-                DebugStuff.WriteLog("Creating new Shell instance (.NET) for lnk file handling");
-                try
-                {
-                    Help = new Shell();
-                }
-                catch (Exception ex)
-                {
-                    DebugStuff.WriteLog("Error creating Shell instance: " + ex.Message);
-                    MessageBox.Show("Error initializing shell: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
-            }
-            else
-            {
-                DebugStuff.WriteLog("Using existing Shell instance (.NET) for lnk file handling from old processin session.");
-            }
-            
-            var Items = Source.GetFiles("*.lnk", SearchOption.TopDirectoryOnly);
-            if (Items == null || Items.Length == 0)
-            {
-                DebugStuff.WriteLog("No .lnk files found in " + Source.FullName);
-                return; // No items to process
-            }
-            else
-            {
-                DebugStuff.WriteLog("Found " + Items.Length + " .lnk files in " + Source.FullName);
-            }
-                foreach (var Item in Items)
-                {
-                    FolderItem shellitem = Help.NameSpace(Source.FullName).ParseName(Item.Name);
-                    if (shellitem.IsLink)
-                    {
-
-                        ToolStripItem NewItem = new ToolStripMenuItem();
-                    ShellLinkObject linkObject = null;
-                        try
-                        {
-                         linkObject = shellitem.GetLink as ShellLinkObject;
-                        }
-                        catch (Exception ex)
-                        {
-                            DebugStuff.WriteLog("Error getting link object: " + ex.Message);
-                            MessageBox.Show($"Error processing shortcut '{Item.Name}': {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            continue; // Skip this item if there's an error
-                        }
-                           NewItem.Text = linkObject?.Description ?? Item.Name;
-                        if (string.IsNullOrEmpty(NewItem.Text))
-                        {
-                            NewItem.Text = AssignFromTarget(linkObject.Path);
-                        }
-                        NewItem.Image = IconResolver.ResolveIcon(linkObject);
-                        NewItem.Tag = linkObject;
-                        NewItem.Click += (sender, e) =>
-                        {
-
-                            try
-                            {
-                                LinkDispatch.FollowLink(((ToolStripItem)sender).Tag as ShellLinkObject);
-                            }
-                            catch (Exception ex)
-                            {
-                                MessageBox.Show($"Error launching shortcut: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            }
-                        };
-                    DebugStuff.WriteLog("Adding item " + NewItem.Text + " to context menu from folder " + Source.FullName);
-                    Target?.Items.Add(NewItem);
-                        OtherTarget?.DropDown.Items.Add(NewItem);
-                    }
-
-                }
-        }
-
-        static void AddGroupToMenu(ToolStripMenuItem Ext, RegGroup Group)
-        {
-            if (Group == null || !Group.IsEnabled)
-            {
-                return; // If the group is null or not enabled, do not add it.
-            }
-            var Folders = Group.GetDirectories();
-            for (int i = 0; i < Folders.Count; i++)
-            {
-                
-                if (Folders[i] == null || !Folders[i].Exists)
-                {
-                    Folders.RemoveAt(i);
-                    i--;
-                }
-                else
-                {
-                    DebugStuff.WriteLog("Adding folder " + Folders[i].FullName + " to context menu.");
-                    HandleFolderShortcutToolMenu_branching(Folders[i], null, Ext);
-                }
-            }
-        }
-        static void AddGroupToMenu(ContextMenuStrip Ext, RegGroup Group)
-        {
-            if (Group == null || !Group.IsEnabled)
-            {
-                return; // If the group is null or not enabled, do not add it.
-            }
-            var Folders = Group.GetDirectories();
-            for (int i = 0; i < Folders.Count; i++)
-            {
-                if (Folders[i] == null || !Folders[i].Exists)
-                {
-                    Folders.RemoveAt(i);
-                    i--;
-                }
-                else
-                {
-                    DebugStuff.WriteLog("Adding folder " + Folders[i].FullName + " to context menu.");
-                    HandleFolderShortcutToolMenu_branching(Folders[i], Ext, null);
-                }
-            }
-        }
-        /// <summary>
-        /// Parse, extract and handle the group to the tool menu.
-        /// </summary>
-        /// <param name="Ext"></param>
-        /// <param name="Group"></param>
-        public static void AddGroup(this ContextMenuStrip Ext, RegGroup Group)
-        {
-           
-            if (!Group.IsTopLevel)
-            {
-                ToolStripMenuItem ToolStrip;
-                DebugStuff.WriteLog("Adding group " + Group.Name + " to context menu as a submenu.");
-                ToolStrip =  new ToolStripMenuItem();
-                AddGroupToMenu(ToolStrip ,Group);
-                ToolStrip.Text = Group.Name;
-                ToolStrip.Image = Group.GetGroupIcon();
-                Ext.Items.Add(ToolStrip);
-            }
-            else
-            {
-                DebugStuff.WriteLog("Adding group " + Group.Name + " to context menu as a top level collection.");
-                AddGroupToMenu(Ext, Group);
-      
-            }
 
 
-            
-        
-        }
-    }
-    /// <summary>
+
+    
+     /// <summary>
     /// Represents a read only view of a reg group
     /// </summary>
-    internal class RegGroup :IDisposable
+    public abstract class RegGroup :IDisposable
     {
         readonly string name;
-        RegistryKey GroupKey;
+        readonly IResolveIconFromPath IconHandler;
+        readonly IRegProvider Reg;
+        readonly IFolderProviderResolver FolderResolver;
+        protected RegistryKey GroupKey;
+        RegistryKey Source;
+        bool _IsWritable = false;
+        public  bool IsReadonly => _IsWritable == false; // If writable is false, this is a read only group
+        public  RegSettings2.GroupType GetGroupType()
+        { 
+            if (GroupKey != null)
+            {
+                if (Source == Registry.LocalMachine)
+                {
+                    if (GroupKey.Name.Contains(RegConfigLocations.PolicySettingLocation))
+                    {
+                        return RegSettings2.GroupType.Policy;
+                    }
+                }
+                else if (Source == Registry.CurrentUser)
+                {
+                    if (GroupKey.Name.Contains(RegConfigLocations.UserGroupLocation))
+                    {
+                        return RegSettings2.GroupType.User;
+                    }
+                }
+                
+            }
+            return RegSettings2.GroupType.None;
+        }
         /// <summary>
-        /// Create or open a group 
+        /// Create a group class to ready this reg key entry, Handler will resolve icons. If blank, an <see cref="IconResolverHandler"/> is used
         /// </summary>
-        /// <param name="FromName"></param>
-        public RegGroup(string FromName)
+        /// <param name="FromName">open this group</param>
+        /// <param name="Handler">handler to resolving icons</param>
+        public RegGroup(string FromName, IResolveIconFromPath Handler, IFolderProviderResolver FolderResolver, bool Writable=false)
         {
-            GroupKey = Registry.CurrentUser.OpenSubKey(RegConfigLocations.UserGroupLocation + "\\" + FromName);
+            this.FolderResolver = FolderResolver ?? throw new ArgumentNullException(nameof(FolderResolver), "Folder resolver cannot be null");
+            _IsWritable = Writable; // Set the writable flag based on the parameter
+            Reg = new DefaultRegProvider(); // Default registry provider if none provided
+            /* our plan 
+             * is to first try opening as a policy group. If that's blocked, user group
+             * */
+            try
+            {
+                if (string.IsNullOrEmpty(FromName))
+                {
+                    throw new ArgumentException("Group name cannot be null or empty", nameof(FromName));
+                }
+            }
+            catch (ArgumentException ex)
+            {
+                DebugStuff.WriteLog("Error creating RegGroup: " + ex.Message);
+                throw; // Re-throw the exception to be handled by the caller
+            }
+
+            this.Source = Registry.LocalMachine;
+
+            try
+            {
+                GroupKey = Reg.OpenRegKey(Source, RegConfigLocations.UserGroupLocation + "\\" + FromName, Writable);
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                DebugStuff.WriteLog("Access violation while trying to open registry key: " + e.Message);
+                DebugStuff.WriteLog("Skipping trying to load from policy.");
+                GroupKey = null;
+            }
+            catch (Exception e)
+            {
+                DebugStuff.WriteLog("Error to open registry key: " + e.Message);
+                DebugStuff.WriteLog("Skipping trying to load from policy.");
+                GroupKey = null;
+            }
+
             if (GroupKey == null)
             {
-                GroupKey = Registry.CurrentUser.CreateSubKey(RegConfigLocations.UserGroupLocation + "\\" + FromName);
+                Source = Registry.CurrentUser; // Fallback to CurrentUser if LocalMachine fails
+                try
+                {
+                    GroupKey = Reg.OpenRegKey(Source, RegConfigLocations.UserGroupLocation + "\\" + FromName, Writable);
+                }
+                catch (AccessViolationException e)
+                {
+                    DebugStuff.WriteLog("Access violation while trying to open registry key: " + e.Message);
+                    throw;
+                }
+            }
+
+
+         //GroupKey = Registry.CurrentUser.OpenSubKey(RegConfigLocations.UserGroupLocation + "\\" + FromName);
+            if (GroupKey == null)
+            {
+                if (_IsWritable)
+                {
+                    GroupKey = Reg.CreateSubKey(Source, RegConfigLocations.UserGroupLocation + "\\" + FromName);
+                    if (GroupKey == null)
+                    {
+                        throw new InvalidOperationException("Failed to or open registry key for group: " + FromName);
+                    }
+                }
+                else
+                {
+                    throw new InvalidOperationException("Group key does not exist and is not writable: " + FromName);
+                }
             }
             name = FromName;
+            if (Handler == null)
+            {
+                IconHandler = new IconResolverHandler(); // Default icon handler if none provided
+            }
+            else
+            {
+                IconHandler = Handler; // Use the provided icon handler
+            }
         }
+        
+        public RegGroup(string FromName, IResolveIconFromPath Handler, IFolderProviderResolver FolderResolver, IRegProvider RegistryProvider, bool Writable=false)
+        {
+            this.FolderResolver = FolderResolver ?? throw new ArgumentNullException(nameof(FolderResolver), "Folder resolver cannot be null");
+            this._IsWritable = Writable; // Set the writable flag based on the parameter
+            if (RegistryProvider == null)
+            {
+                throw new ArgumentNullException(nameof(Registry), "Registry provider cannot be null");
+            }
+            Reg = RegistryProvider;
+            try
+            {
+                if (string.IsNullOrEmpty(FromName))
+                {
+                    throw new ArgumentException("Group name cannot be null or empty", nameof(FromName));
+                }
+            }
+            catch (ArgumentException ex)
+            {
+                DebugStuff.WriteLog("Error creating RegGroup: " + ex.Message);
+                throw; // Re-throw the exception to be handled by the caller
+            }
+
+            try
+            {
+                GroupKey = Reg.OpenRegKey(Registry.LocalMachine, RegConfigLocations.UserGroupLocation + "\\" + FromName, false);
+            }
+            catch (AccessViolationException e)
+            {
+                DebugStuff.WriteLog("Access violation while trying to open registry key: " + e.Message);
+                DebugStuff.WriteLog("Skipping trying to load from policy.");
+            }
+
+            if (GroupKey == null)
+            {
+                try
+                {
+                    GroupKey = Reg.OpenRegKey(Registry.CurrentUser, RegConfigLocations.UserGroupLocation + "\\" + FromName, false);
+                }
+                catch (AccessViolationException e)
+                {
+                    DebugStuff.WriteLog("Access violation while trying to open registry key: " + e.Message);
+                    throw;
+                }
+            }
+
+
+            //GroupKey = Registry.CurrentUser.OpenSubKey(RegConfigLocations.UserGroupLocation + "\\" + FromName);
+            if (GroupKey == null)
+            {
+                if (_IsWritable)
+                {
+                    GroupKey = Reg.CreateSubKey(Registry.CurrentUser, RegConfigLocations.UserGroupLocation + "\\" + FromName);
+                    if (GroupKey == null)
+                    {
+                        throw new InvalidOperationException("Failed to create or open registry key for group: " + FromName);
+                    }
+                }
+                else
+                {
+                    throw new InvalidOperationException("Group key does not exist and is not writable: " + FromName);
+                }
+            }
+            name = FromName;
+            if (Handler == null)
+            {
+                IconHandler = new IconResolverHandler(); // Default icon handler if none provided
+            }
+            else
+            {
+                IconHandler = Handler; // Use the provided icon handler
+            }
+        }
+
 
         /// <summary>
         /// Get the name of the group ie registry get we created this class from.
@@ -331,22 +261,42 @@ namespace CorpTrayLauncher
             }
         }
 
-        /// <summary>
+        public string GetGroupIconLocation()
+        {
+            if (GroupKey != null)
+            {
+                //object value = GroupKey.GetValue(RegConfigLocations.TrayIcon);
+                object value = this.Reg.GetValue(GroupKey, null, RegConfigLocations.TrayIcon, null);
+                if (value != null && value is string iconPath && !string.IsNullOrEmpty(iconPath))
+                {
+                    return value.ToString();
+                    //Image icon = IconHandler.ResolveIcon(value.ToString());
+                    //return icon;
+                }
+            }
+            return null; // No icon defined, return null
+        }
+
+        /// <summary>d
         /// Get the image if any defined for this group. This is used to display the icon in the context menu. Blank is fine.
         /// </summary>
         /// <returns></returns>
         public Image GetGroupIcon()
         {
-            if (GroupKey != null)
+            string location = GetGroupIconLocation();
+            if (!string.IsNullOrEmpty(location))
             {
-                object value = GroupKey.GetValue(RegConfigLocations.TrayIcon);
-                if (value != null && value is string iconPath && !string.IsNullOrEmpty(iconPath))
+                try
                 {
-                    Image icon = IconResolver.ResolveIcon(value.ToString());
-                    return icon;
+                    return IconHandler.ResolveIcon(location);
+                }
+                catch (Exception ex)
+                {
+                    DebugStuff.WriteLog("Error resolving icon: " + ex.Message);
+                    return null; // Return null if there's an error resolving the icon
                 }
             }
-            return null; // No icon defined, return null
+            return null;
         }
 
 
@@ -355,6 +305,7 @@ namespace CorpTrayLauncher
         /// Grab all directories out of the folder exist. Should the registry key not exist, it will return the default directories.
         /// </summary>
         /// <returns></returns>
+        /// <remarks>Default Directory list is exe running path and a subfolder of that "Itmes"</remarks>
         public List<DirectoryInfo> GetDirectories()
         {
             List<DirectoryInfo> directories = new List<DirectoryInfo>();
@@ -363,7 +314,9 @@ namespace CorpTrayLauncher
                 string[] paths = GroupKey.GetValue(RegConfigLocations.FolderRegValueName)?.ToString().Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
                 if (paths != null && paths.Length > 0)
                 {
-                    directories = paths.Select(path => new DirectoryInfo(path.Trim())).ToList();
+                    
+
+                    directories = paths.Select(path => new DirectoryInfo(FolderResolver.GetFolder  (path.Trim()))).ToList();
                     // Filter out directories that do not exist
                     directories = directories.Where(dir => dir.Exists).ToList();
                 }
@@ -396,108 +349,152 @@ namespace CorpTrayLauncher
         }
     }
 
-
-
-    internal static class RegSettingChecker
+    /// <summary>
+    /// A read only view of a group
+    /// </summary>
+    public class ReadableRegGreg : RegGroup
     {
-        /// <summary>
-        /// How this works. Pass Policy+User, BOTH are checked.  should they be in conflict, Policy negative wins ie. Example: if a group1 is defined as active at user but disabled at policy - group1 is disabled.. Likewise if group1 is disabled at user level but alive at polcy, it's active
-        /// </summary>
-        enum SettingCheckMode
+        public ReadableRegGreg(string FromName, IResolveIconFromPath Handler, IFolderProviderResolver FolderResolver) : base(FromName, Handler, FolderResolver, false)
         {
-            Policy,
-            User
+            
         }
 
-        public static bool UserGroupExists(string name)
+        public ReadableRegGreg(string FromName, IResolveIconFromPath Handler, IFolderProviderResolver FolderResolver, IRegProvider RegistryProvider): base(FromName, Handler, FolderResolver, RegistryProvider, false)
         {
-            using (RegistryKey key = RegConfigLocations.OpenUsersGroup())
-            {
-                if (key != null)
-                {
-                    if (key.SubKeyCount > 0)
-                    {
-                        // Check if the specific group exists in the user registry
-                        return key.GetSubKeyNames().Contains(name);
-                    }
-                }
-            }
-            return false;
+            
         }
-
-
-        public static bool IsUserGroupActive(string name)
-        {
-            using (RegistryKey key = RegConfigLocations.OpenUsersGroup())
-            {
-                if (key != null)
-                {
-                    if (key.GetSubKeyNames().Contains(name))
-                    {
-                        object value = key.GetValue(name + "\\" + RegConfigLocations.DisabledRegValueName);
-                        if (value != null && value is int intValue)
-                        {
-                            return intValue == 0; // 0 means enabled, 1 means disabled
-                        }
-                    }
-                }
-            }
-            return true; // Default to false if not set
-        }
-       
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="groups"></param>
-        /// <returns></returns>
-        public static List<string> GetActiveGroupsNames(List<string> groups)
-        {
-            using (RegistryKey key = RegConfigLocations.OpenUsersGroup())
-            {
-                if (key != null)
-                {
-                    foreach (string groupName in key.GetSubKeyNames())
-                    {
-                        if (IsUserGroupActive(groupName))
-                        {
-                            groups.Add(groupName);
-                        }
-                    }
-                    return groups;
-                }
-            }
-            return null;
-        }
-        public static List<string> GetActiveGroupsNames()
-        {
-            var ret = new List<string>();
-            return GetActiveGroupsNames(ret);
-        }
-
-        public static List<RegGroup> GetGroups(List<string> groups)
-        {
-            if (groups == null || groups.Count == 0)
-            {
-                groups = GetActiveGroupsNames();
-            }
-            List<RegGroup> groupList = new List<RegGroup>();
-            foreach (string groupName in groups)
-            {
-
-                    RegGroup group = new RegGroup(groupName);
-                    if (group.IsEnabled)
-                    {
-                        groupList.Add(group);
-                    }
-            }
-            return groupList;
-        }
-
-
-        
     }
 
-       
-    
+    /// <summary>
+    /// a read and writable view of the group.
+    /// </summary>
+    public class WritableRegGroup: RegGroup
+    {
+        public WritableRegGroup(string FromName, IResolveIconFromPath Handler, IFolderProviderResolver FolderResolver) : base(FromName, Handler, FolderResolver, true)
+        {
+            Refresh();
+        }
+
+        #region OurCache
+        bool _IsTopLevel = false;
+        bool _IsEnabled = false;
+        string _Name = string.Empty;
+        public readonly List<string> _Directories = new List<string>();
+        string _GroupIcon;
+
+        /// <summary>       
+        #endregion
+        bool Changed;
+
+        public new List<string> GetDirectories()
+        {
+            return _Directories;
+        }
+        public new string Name
+        {
+            get { return _Name; }
+            set
+            {
+                if (_Name != value)
+                {
+                    _Name = value;
+                    Changed = true;
+                }
+            }
+        }
+        public new bool IsTopLevel
+        {
+            get { return _IsTopLevel; }
+            set
+            {
+                if (_IsTopLevel != value)
+                {
+                    _IsTopLevel = value;
+                    Changed = true;
+                }
+            }
+        }
+        public new bool IsEnabled
+        {
+            get { return _IsEnabled; }
+            set
+            {
+                if (_IsEnabled != value)
+                {
+                    _IsEnabled = value;
+                    Changed = true;
+                }
+            }
+        }
+
+        public string GroupIconLocation
+        {
+            get { return _GroupIcon; }
+            set
+            {
+                if (_GroupIcon != value)
+                {
+                    _GroupIcon = value;
+                    Changed = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Pull the stored group data into our class and discard changes
+        /// </summary>
+        public void Refresh()
+        {
+            _IsTopLevel = base.IsTopLevel;
+            _IsEnabled = base.IsEnabled;
+            _Name = base.Name;
+            _Directories.Clear();
+            foreach (var dir in base.GetDirectories())
+            {
+                _Directories.Add(dir.FullName);
+            }
+            _GroupIcon = base.GetGroupIconLocation();
+        }
+
+        /// <summary>
+        /// Commit the group changes to the regitry.
+        /// </summary>
+        public void Commit()
+        {
+            if (IsReadonly)
+            {
+                throw new InvalidOperationException("Cannot commit changes to a read-only group.");
+            }
+            var GroupType = GetGroupType();
+            if (Changed)
+            {
+                base.GroupKey.SetValue(RegConfigLocations.IsTopLevelRegValueName, _IsTopLevel, RegistryValueKind.DWord);
+                if (_IsEnabled)
+                    base.GroupKey.SetValue(RegConfigLocations.DisabledRegValueName, 0,  RegistryValueKind.DWord);
+                else
+                    base.GroupKey.SetValue(RegConfigLocations.DisabledRegValueName, 1, RegistryValueKind.DWord);
+                base.GroupKey.SetValue(RegConfigLocations.FolderRegValueName, string.Join(";", _Directories));
+                Changed = false;
+                Refresh();
+            }
+        }
+
+        public void ExportAsJson(Stream Output)
+        {
+            throw new NotImplementedException();
+        }
+
+        public WritableRegGroup CreateFromJson(Stream Input)
+        {
+            throw new NotImplementedException();
+        }
+
+
+
+    }
+
+
+ 
+
+
 }

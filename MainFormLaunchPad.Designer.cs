@@ -33,7 +33,7 @@
             this.RightClickContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.SuspendLayout();
             // 
-            // notifyIcon1
+            // NotifiyIconTaskBarHandler
             // 
             this.NotifiyIconTaskBarHandler.Text = "TaskTrayIconCtrl";
             this.NotifiyIconTaskBarHandler.Visible = true;
@@ -45,13 +45,15 @@
             this.RightClickContextMenuStrip.Name = "RightClickContextMenuStrip";
             this.RightClickContextMenuStrip.Size = new System.Drawing.Size(61, 4);
             // 
-            // Form1
+            // MainFormLaunchPad
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Name = "Form1";
-            this.Text = "Form1";
+            this.Name = "MainFormLaunchPad";
+            this.Text = "CorpTray Lauch Form";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainFormLaunchPad_FormClosing);
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.MainFormLaunchPad_FormClosed);
             this.Load += new System.EventHandler(this.Form1_Load);
             this.ResumeLayout(false);
 

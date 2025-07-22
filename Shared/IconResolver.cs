@@ -7,16 +7,25 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-namespace CorpTrayLauncher
+namespace CorpTrayLauncher.IconHandling
 {
-    internal class ExtractIcon
+    /// <summary>
+    /// The default iplementation of <see cref="IExtractIconProvider"/> just wraps the Windows API to extract an icon from a file.
+    /// </summary>
+    internal class DefaultIconExtractImport: IExtractIconProvider
     {
         [DllImport("shell32.dll", CharSet = CharSet.Auto)]
         static extern uint ExtractIconEx(string szFileName, int nIconIndex,
    IntPtr[] phiconLarge, IntPtr[] phiconSmall, uint nIcons);
         [DllImport("user32.dll")]
         static extern bool DestroyIcon(IntPtr hIcon);
-        public static Image GetIcon(string filePath, int iconIndex = 0)
+
+        public virtual void Dispose()
+        {
+            ; // none needed
+        }
+
+        public Image GetIconAsImage(string filePath, int iconIndex = 0)
         {
             IntPtr[] largeIcons = new IntPtr[1];
             IntPtr[] smallIcons = new IntPtr[1];
@@ -29,27 +38,60 @@ namespace CorpTrayLauncher
             }
             return null;
         }
+
+        public Icon GetIconAsIcon(string filePath, int iconIndex = 0)
+        {
+            IntPtr[] largeIcons = new IntPtr[1];
+            IntPtr[] smallIcons = new IntPtr[1];
+            uint iconCount = ExtractIconEx(filePath, iconIndex, largeIcons, smallIcons, 1);
+            if (iconCount > 0 && largeIcons[0] != IntPtr.Zero)
+            {
+                return Icon.FromHandle(largeIcons[0]);
+            }
+            return null;
+        }
     }
     /// <summary>
     /// Fetch icon for a ShellLinkObject, or the target if no icon is defined.
     /// </summary>
-    public static class IconResolver
+    public class IconResolverHandler: IResolveIconFromPath
     {
-        public static Image ResolveIcon(string icon_file_item)
+        readonly IExtractIconProvider ExtractIconAPI;
+
+        public Icon ExtractIconViaProvider(string source, int iconIndex = 0)
         {
-            int icon_index = 0;
-            Image x;
-
-
-            x = ExtractIcon.GetIcon(icon_file_item, icon_index);
-            return x;
+            if (ExtractIconAPI == null)
+            {
+                throw new InvalidOperationException("ExtractIconProvider is not initialized.");
+            }
+            return ExtractIconAPI.GetIconAsIcon(source, iconIndex);
         }
+
+        public Image ExtractIconAsImage(string source, int iconIndex = 0)
+        {
+            if (ExtractIconAPI == null)
+            {
+                throw new InvalidOperationException("ExtractIconProvider is not initialized.");
+            }
+            return ExtractIconAPI.GetIconAsImage(source, iconIndex);
+        }
+
+
+        public IconResolverHandler(IExtractIconProvider ExtractIconHandler)
+        {
+            ExtractIconAPI = ExtractIconHandler ?? throw new ArgumentNullException(nameof(ExtractIconHandler), "ExtractIconProvider cannot be null");
+        }
+
+        public IconResolverHandler() : this(new DefaultIconExtractImport())
+        {
+        }
+
         /// <summary>
         /// Resolves the icon for a given ShellLinkObject. If none is defined, default to Icon of the target. Should that be blank, the menu item won't have an icon.
         /// </summary>
         /// <param name="linkObject"></param>
         /// <returns>null or <see cref="Image>"/> for <see cref="ToolStripItem.Image"/></returns>
-        public static Image ResolveIcon(ShellLinkObject linkObject)
+        public Image ResolveIcon(ShellLinkObject linkObject)
         {
             if (linkObject == null)
             {
@@ -74,8 +116,18 @@ namespace CorpTrayLauncher
                 }
             }
 
-            x = ExtractIcon.GetIcon(icon_file_item, icon_index);
+            x = ExtractIconAPI.GetIconAsImage(icon_file_item, icon_index);
             return x;
+        }
+
+        public Image ResolveIcon(string icon_file_item, int Index = 0)
+        {
+            return ExtractIconAPI.GetIconAsImage(icon_file_item, Index);
+        }
+
+        public void Dispose()
+        {
+            ExtractIconAPI.Dispose();
         }
     }
 }
