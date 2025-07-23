@@ -1,4 +1,3 @@
-Absolutely. Here's a cleaned-up and spell-checked `README.md` draft for your **CorpTray** utility, targeting .NET Framework 4.7.2 and written on Windows 10:
 
 ---
 
