@@ -10,11 +10,20 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using CorpTrayLauncher.Shortcuts;
+using System.Diagnostics;
 namespace CorpTrayLauncher
 {
 
     static class RegGroupDispatcher
     {
+        /// <summary>
+        /// Add the groups to the context menu passed. This is functionally the heart of the generator
+        /// </summary>
+        /// <param name="Groups">list of groups to add. While we assume they're active, no such check is here as this is called by other code that does the checking</param>
+        /// <param name="IconResolverHandler">can be null, this code will resolve icon requests from shortcuts, ect... as needed.</param>
+        /// <param name="FolderResolver">Should NOT be null. This translates a folder string file in in the <see cref="RegConfigLocations.FolderRegValueName"/> group key into real live folders. Used to expand env variables</param>
+        /// <param name="RightClickContextMenuStrip">The menu strip to add too</param>
+        /// <param name="active_count"></param>
         public static void AddGroups(List<string> Groups, IResolveIconFromPath IconResolverHandler,  IFolderProviderResolver FolderResolver, ContextMenuStrip RightClickContextMenuStrip, out int active_count)
         {
 
@@ -29,11 +38,30 @@ namespace CorpTrayLauncher
                 DebugStuff.WriteLog("Begining adding Group, null IconResolveFromPath interface. System will NOT resolve icons to menu item");
             }
 
+            if (FolderResolver == null)
+            {
+                string msg = "Warning/Fatal error: AddGroup() must have a IFolderProviderResolver class passed to it.";
+                DebugStuff.WriteLog(msg);
+                if (Debugger.IsAttached)
+                    Debugger.Break();
+                else
+                {
+                    MessageBox.Show("Warning/Fatal error: AddGroup() must have a IFolderProviderResolver class passed to it. This is is a logic error");
+                    Application.Exit();
+                    Environment.Exit(-999999);
+                    return;
+                }
+            }
+
+            
+            // if no groups to add, nothing to do, log it and go home
+
             if ( (Groups == null) || (Groups.Count == 0))
             {
                 DebugStuff.WriteLog("No groups added cause empty Group or null group passed to RegGroupDispatcher.");
                 return;
             }
+            // loop thru the groups passed, passing the name, icon handler and folder handler to WritableRegGroup
                 for (int i = 0; i < Groups.Count; i++)
                 {
                     var group = Groups[i];
@@ -42,6 +70,7 @@ namespace CorpTrayLauncher
                         RegGroup regGroup = new WritableRegGroup(group, IconResolverHandler, FolderResolver);
                         if (!regGroup.IsEnabled)
                         {
+                            // log we're skipping 
                             string msg = string.Empty;
                             switch (regGroup.GetGroupType())
                             {
@@ -60,7 +89,10 @@ namespace CorpTrayLauncher
                             regGroup = null; // clear the reference to the group
                             continue;
                         }
+                        // stat track cause why note
                         active_count++;
+
+                        // this routine here finishes up and adds the group to the passed context menu
                         RightClickContextMenuStrip.AddGroup(regGroup, IconResolverHandler);
                     }
                 }
@@ -77,6 +109,7 @@ namespace CorpTrayLauncher
 
             if (force)
             {
+                // create the exit tool strip item, include the code to exit the app 
                 ToolStripMenuItem exitAppMenuItem = new ToolStripMenuItem();
                 exitAppMenuItem.Text = "Close this app.";
                 exitAppMenuItem.Click +=  (sender, e) =>
@@ -84,7 +117,9 @@ namespace CorpTrayLauncher
                     Application.Exit();
                     DebugStuff.WriteLog("User requested to exit the application.");
                     Environment.Exit(0);
+                    return;
                 };
+                // hook it up
                 ext.Items.Add(exitAppMenuItem); 
             }
             
@@ -101,6 +136,7 @@ namespace CorpTrayLauncher
 
             if (force)
             {
+                // create the refresh menu item, assign the event code to call the refresh and go
                 ToolStripMenuItem RefreshMenu = new ToolStripMenuItem();
                 RefreshMenu.Text = "Refresh Menu.";
                 RefreshMenu.Tag = refresh_this_form;
@@ -111,14 +147,19 @@ namespace CorpTrayLauncher
                     if (that != null)
                     {
                         that.RefreshContextMenu("User requested refresh.");
-                        that.RefreshContextMenu();
+                        //that.RefreshContextMenu();
 
                     }
                 };
+                // add it too
                 ext.Items.Add(RefreshMenu);
             }
         }
 
+        /// <summary>
+        /// Nothing fancy, just add a seperator to this toolstrip
+        /// </summary>
+        /// <param name="ext">the ToolStrip to add too</param>
         public static void AddSeperator(this ToolStrip ext)
         {
             ToolStripSeparator toolStripSeparator = new ToolStripSeparator();
@@ -144,6 +185,13 @@ namespace CorpTrayLauncher
 
         }
 
+        /// <summary>
+        /// Another holder routine. This will grab Shortcuts (.LNK) files from the directory, make a menu item for them and add to either OtherTarget or Target if any of them not null
+        /// </summary>
+        /// <param name="Source">Directory to scan for .LNK files</param>
+        /// <param name="Target">Target to add menu for.  For top level menu, this is not null.</param>
+        /// <param name="OtherTarget">Target to add menu for. For a NON top level menu, this is not null</param>
+        /// <param name="IconHandler">can techinically be null, but we need non null for icons</param>
         static void HandleFolderShortcutToolMenu_branching(DirectoryInfo Source, ContextMenuStrip Target, ToolStripMenuItem OtherTarget, IResolveIconFromPath IconHandler)
         {
             if (Help == null)
@@ -175,12 +223,13 @@ namespace CorpTrayLauncher
             {
                 DebugStuff.WriteLog("Found " + Items.Length + " .lnk files in " + Source.FullName);
             }
+            // loop thru the found items
             foreach (var Item in Items)
             {
                 FolderItem shellitem = Help.NameSpace(Source.FullName).ParseName(Item.Name);
                 if (shellitem.IsLink)
                 {
-
+                    // yay a shortcut, create a tool strip thing for it, attempt to extract what we need and assign the new toolstrip.tag as our ShellLinkObject
                     ToolStripItem NewItem = new ToolStripMenuItem();
                     ShellLinkObject linkObject = null;
                     try
@@ -228,6 +277,12 @@ namespace CorpTrayLauncher
             }
         }
 
+        /// <summary>
+        /// Add a group to a submenu of the context menu, assuming Ext is a child of a context menu
+        /// </summary>
+        /// <param name="Ext">The direct menu to add the processed group too</param>
+        /// <param name="Group">Group to add</param>
+        /// <param name="IconHandler">can techinically be null, but we need non null for icons</param>
         static void AddGroupToMenu(ToolStripMenuItem Ext, RegGroup Group, IResolveIconFromPath IconHandler)
         {
             if (Group == null || !Group.IsEnabled)
@@ -251,6 +306,13 @@ namespace CorpTrayLauncher
                 }
             }
         }
+
+        /// <summary>
+        /// Add a top level group to our main context menu
+        /// </summary>
+        /// <param name="Ext">context menu to add too</param>
+        /// <param name="Group"></param>
+        /// <param name="Iconhandler"></param>
         static void AddGroupToMenu(ContextMenuStrip Ext, RegGroup Group, IResolveIconFromPath Iconhandler)
         {
             if (Group == null || !Group.IsEnabled)
@@ -275,8 +337,9 @@ namespace CorpTrayLauncher
         /// <summary>
         /// Parse, extract and handle the group to the tool menu.
         /// </summary>
-        /// <param name="Ext"></param>
-        /// <param name="Group"></param>
+        /// <param name="Ext">The context menu we add too</param>
+        /// <param name="Group">The Group we are added</param>
+        /// <param name="Resolver">If we want icons added too, this should be not null</param>
         public static void AddGroup(this ContextMenuStrip Ext, RegGroup Group, IResolveIconFromPath Resolver)
         {
 

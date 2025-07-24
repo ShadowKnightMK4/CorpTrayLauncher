@@ -8,12 +8,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-
+using CorpTrayLauncher.RegistryHandling;
 namespace GroupEditor
 {
-    public partial class Form1 : Form
+    public partial class GroupEditorForm : Form
     {
-        public Form1()
+          RegSettings2 regSettings;
+        public GroupEditorForm()
         {
             InitializeComponent();
         }
@@ -72,7 +73,17 @@ namespace GroupEditor
         }
         private void Form1_Load(object sender, EventArgs e)
         {
-
+            if (regSettings == null)
+            {
+                regSettings = new RegSettings2();
+            }
+            var Groups = regSettings.GetGroupNames(false);
+            foreach (var group in Groups)
+            {
+                ListBoxGroupList.Items.Add(group);
+            }
+            ListBoxGroupList.Sorted = true;
+            ListBoxGroupList.Sorted = false;
         }
 
         private void TextBoxGroupBoxName_Validating(object sender, CancelEventArgs e)
@@ -125,6 +136,11 @@ namespace GroupEditor
                 checkedListBoxFolderSelection.Items.Add(TextBoxFreeFormFolder.Text, true);
             }
 
+        }
+
+        private void ButtonClearCheckedFolderList_Click(object sender, EventArgs e)
+        {
+            //checkedListBoxFolderSelection
         }
     }
 

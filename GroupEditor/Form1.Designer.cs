@@ -1,6 +1,6 @@
 ﻿namespace GroupEditor
 {
-    partial class Form1
+    partial class GroupEditorForm
     {
         /// <summary>
         /// Required designer variable.
@@ -53,10 +53,12 @@
             this.TextBoxGroupIconSource = new System.Windows.Forms.TextBox();
             this.LabeGrouplconSource = new System.Windows.Forms.Label();
             this.tabControl1 = new System.Windows.Forms.TabControl();
-            this.FolderBrowserDialogSelectLinkFolder = new System.Windows.Forms.FolderBrowserDialog();
-            this.ToolTipShowFolderLocation = new System.Windows.Forms.ToolTip(this.components);
             this.TabPagePolicyLevelSettings = new System.Windows.Forms.TabPage();
             this.TabPageTraySettings = new System.Windows.Forms.TabPage();
+            this.FolderBrowserDialogSelectLinkFolder = new System.Windows.Forms.FolderBrowserDialog();
+            this.ToolTipShowFolderLocation = new System.Windows.Forms.ToolTip(this.components);
+            this.ListBoxGroupList = new System.Windows.Forms.ListBox();
+            this.button1 = new System.Windows.Forms.Button();
             this.TabPageGroupEditorTab.SuspendLayout();
             this.GroupBoxNames.SuspendLayout();
             this.GroupBoxFolderLocations.SuspendLayout();
@@ -77,7 +79,7 @@
             this.TabPageGroupEditorTab.Location = new System.Drawing.Point(4, 29);
             this.TabPageGroupEditorTab.Name = "TabPageGroupEditorTab";
             this.TabPageGroupEditorTab.Padding = new System.Windows.Forms.Padding(3);
-            this.TabPageGroupEditorTab.Size = new System.Drawing.Size(742, 487);
+            this.TabPageGroupEditorTab.Size = new System.Drawing.Size(743, 487);
             this.TabPageGroupEditorTab.TabIndex = 1;
             this.TabPageGroupEditorTab.Text = "Group Editor";
             this.TabPageGroupEditorTab.UseVisualStyleBackColor = true;
@@ -180,6 +182,7 @@
             this.ButtonClearCheckedFolderList.TabIndex = 3;
             this.ButtonClearCheckedFolderList.Text = "Clear Checked";
             this.ButtonClearCheckedFolderList.UseVisualStyleBackColor = true;
+            this.ButtonClearCheckedFolderList.Click += new System.EventHandler(this.ButtonClearCheckedFolderList_Click);
             // 
             // ButtonBrowseForNewFolder
             // 
@@ -294,10 +297,10 @@
             this.tabControl1.Controls.Add(this.TabPageGroupEditorTab);
             this.tabControl1.Controls.Add(this.TabPagePolicyLevelSettings);
             this.tabControl1.Controls.Add(this.TabPageTraySettings);
-            this.tabControl1.Location = new System.Drawing.Point(12, 12);
+            this.tabControl1.Location = new System.Drawing.Point(101, 12);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(750, 520);
+            this.tabControl1.Size = new System.Drawing.Size(751, 520);
             this.tabControl1.TabIndex = 0;
             // 
             // TabPagePolicyLevelSettings
@@ -305,7 +308,7 @@
             this.TabPagePolicyLevelSettings.Location = new System.Drawing.Point(4, 29);
             this.TabPagePolicyLevelSettings.Name = "TabPagePolicyLevelSettings";
             this.TabPagePolicyLevelSettings.Padding = new System.Windows.Forms.Padding(3);
-            this.TabPagePolicyLevelSettings.Size = new System.Drawing.Size(742, 487);
+            this.TabPagePolicyLevelSettings.Size = new System.Drawing.Size(743, 487);
             this.TabPagePolicyLevelSettings.TabIndex = 2;
             this.TabPagePolicyLevelSettings.Text = "Policy Level Settings";
             this.TabPagePolicyLevelSettings.UseVisualStyleBackColor = true;
@@ -314,18 +317,38 @@
             // 
             this.TabPageTraySettings.Location = new System.Drawing.Point(4, 29);
             this.TabPageTraySettings.Name = "TabPageTraySettings";
-            this.TabPageTraySettings.Size = new System.Drawing.Size(742, 487);
+            this.TabPageTraySettings.Size = new System.Drawing.Size(743, 487);
             this.TabPageTraySettings.TabIndex = 3;
             this.TabPageTraySettings.Text = "tabPage1";
             this.TabPageTraySettings.UseVisualStyleBackColor = true;
             // 
-            // Form1
+            // ListBoxGroupList
+            // 
+            this.ListBoxGroupList.FormattingEnabled = true;
+            this.ListBoxGroupList.ItemHeight = 20;
+            this.ListBoxGroupList.Location = new System.Drawing.Point(11, 12);
+            this.ListBoxGroupList.Name = "ListBoxGroupList";
+            this.ListBoxGroupList.Size = new System.Drawing.Size(84, 504);
+            this.ListBoxGroupList.TabIndex = 1;
+            // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(11, 522);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(104, 41);
+            this.button1.TabIndex = 2;
+            this.button1.Text = "New Group";
+            this.button1.UseVisualStyleBackColor = true;
+            // 
+            // GroupEditorForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(864, 534);
+            this.ClientSize = new System.Drawing.Size(944, 575);
+            this.Controls.Add(this.button1);
+            this.Controls.Add(this.ListBoxGroupList);
             this.Controls.Add(this.tabControl1);
-            this.Name = "Form1";
+            this.Name = "GroupEditorForm";
             this.Text = "CorpTray Editor";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.TabPageGroupEditorTab.ResumeLayout(false);
@@ -371,6 +394,8 @@
         private System.Windows.Forms.Button ButtonClickToAdd;
         private System.Windows.Forms.TabPage TabPagePolicyLevelSettings;
         private System.Windows.Forms.TabPage TabPageTraySettings;
+        private System.Windows.Forms.ListBox ListBoxGroupList;
+        private System.Windows.Forms.Button button1;
     }
 }
 

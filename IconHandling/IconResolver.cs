@@ -48,7 +48,9 @@ namespace CorpTrayLauncher.IconHandling
             {
                 //return Icon.FromHandle(largeIcons[0]); orignal.
                 {
-                 return  (Icon) (Icon.FromHandle(largeIcons[0])).Clone();
+                 var ret =(Icon) (Icon.FromHandle(largeIcons[0])).Clone();
+                    DestroyIcon(largeIcons[0]);
+                    return ret;
                 }
             }
             return null;
@@ -92,7 +94,7 @@ namespace CorpTrayLauncher.IconHandling
         /// <summary>
         /// Resolves the icon for a given ShellLinkObject. If none is defined, default to Icon of the target. Should that be blank, the menu item won't have an icon.
         /// </summary>
-        /// <param name="linkObject"></param>
+        /// <param name="linkObject">Shell COM object to try fetching icon from</param>
         /// <returns>null or <see cref="Image>"/> for <see cref="ToolStripItem.Image"/></returns>
         public Image ResolveIcon(ShellLinkObject linkObject)
         {
@@ -106,9 +108,10 @@ namespace CorpTrayLauncher.IconHandling
             icon_index = linkObject.GetIconLocation( out icon_file_item);
 
             
-            Image x;
+           
             if (string.IsNullOrEmpty(icon_file_item))
             {
+                // no icon defined in the LNK, try the target?
                 icon_file_item = linkObject.Path;
                 DebugStuff.WriteLog("IconResolver: No icon file defined, using Path: " + icon_file_item);
                 if (icon_file_item == null || icon_file_item.Length == 0)

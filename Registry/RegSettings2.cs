@@ -11,6 +11,9 @@ using System.Threading.Tasks;
 namespace CorpTrayLauncher.RegistryHandling
 {
     
+    /// <summary>
+    /// The interface we will use to access the registry. This is used to allow for different implementations of registry access, such as mocking for unit tests or using a different provider.
+    /// </summary>
     public interface IRegProvider
     {
         RegistryKey OpenRegKey(string subKey, bool Writable);
@@ -116,7 +119,7 @@ namespace CorpTrayLauncher.RegistryHandling
         /// <summary>
         /// Is the flag set to add a refresh the menu items?
         /// </summary>
-        /// <returns></returns>
+        /// <returns>reads the registry key for this setting and returns if true or false</returns>
         public bool GetAddRefreshMenuFlag()
         {
             bool output = false;
@@ -127,7 +130,7 @@ namespace CorpTrayLauncher.RegistryHandling
         /// <summary>
         /// If the flag set to add an exit the app menu item
         /// </summary>
-        /// <returns></returns>
+        /// <returns>reads the registry key for this setting and returns if true or false</returns>
         public bool GetExitAppMenuFlag()
         {
             bool output = false;
@@ -445,7 +448,7 @@ namespace CorpTrayLauncher.RegistryHandling
         /// </summary>
         /// <param name="source"></param>
         /// <param name="ExcludeInactive">by default we skip inactive</param>
-        /// <returns></returns>
+        /// <returns>returns list of of corptray groups in the passed registry key</returns>
         /// <remarks>common code for <see cref="GetPolicyGroupNames(bool)"/> and <see cref="GetUserGroupNames(bool)"/></remarks>
         internal List<string> RipGroupName(RegistryKey source, bool ExcludeInactive)
         {
@@ -473,7 +476,7 @@ namespace CorpTrayLauncher.RegistryHandling
         /// Get list of all user groups we can find in the registry.
         /// </summary>
         /// <param name="ExcludeInactive">default true, set to true to skip disabled groups</param>
-        /// <returns></returns>
+        /// <returns>returns a list of groups only defined in the user</returns>
         public List<string> GetUserGroupNames(bool ExcludeInactive=true)
         {
             return RipGroupName(Registry.CurrentUser, ExcludeInactive);
@@ -483,7 +486,7 @@ namespace CorpTrayLauncher.RegistryHandling
         /// Get list of all policy groups we can find in the registry.
         /// </summary>
         /// <param name="ExcludeInactive">default true, set to true to skip disabled groups</param>
-        /// <returns></returns>
+        /// <returns>returns list of groups only in the policy</returns>
         public List<string> GetPolicyGroupNames(bool ExcludeInactive = true)
         {
             return RipGroupName(Registry.LocalMachine, ExcludeInactive);
@@ -492,8 +495,8 @@ namespace CorpTrayLauncher.RegistryHandling
         /// <summary>
         /// get a list of all groups on the system, both user and policy groups.
         /// </summary>
-        /// <param name="ExcludeInactive"></param>
-        /// <returns></returns>
+        /// <param name="ExcludeInactive">default true, set to true to skip disabled groups</param>
+        /// <returns>returns a list of groups in both policy and user</returns>
         public List<string> GetGroupNames(bool ExcludeInactive=true)
         {
             List<string> userGroups;
